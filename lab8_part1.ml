@@ -4,6 +4,10 @@
                                 Part 1
  *)
 
+(*
+                               SOLUTION
+ *)
+
 (* Objective:
 
 This lab practices concepts of functors. 
@@ -74,28 +78,36 @@ module MakeInterval (Endpoint : ORDERED_TYPE) =
     (* create low high -- Returns a new interval covering low to
        high. If low > high, then the interval is empty. *)
     let create (low : Endpoint.t) (high : Endpoint.t) : interval =
-      if Endpoint.compare low high > 0 then Empty 
+      if Endpoint.compare low high > 0 then Empty
       else Interval (low, high)
 
+    
     (* is_empty intvl -- Returns true if and only if the interval is empty *)
     let is_empty (intvl : interval) : bool =
-      intvl = Empty
+      match intvl with
+      | Empty -> true
+      | Interval _ -> false
 
     (* contains intvl x -- Returns true if the value x is contained
        within the interval intvl, false otherwise *)
     let contains (intvl : interval) (x : Endpoint.t) : bool =
-      match intvl with 
+      match intvl with
       | Empty -> false
-      | Interval (s, t) -> if Endpoint.compare s x > 0 || Endpoint.compare t x < 0 then false else true
+      | Interval (low, high) ->
+         Endpoint.compare x low >= 0
+         && Endpoint.compare x high <= 0
 
     (* intersect intvl1 intvl2 -- Returns the intersection of the two
        input intervals. *)
     let intersect (intvl1 : interval) (intvl2 : interval) : interval =
-      match intvl1, intvl2 with 
-      | Empty, _ -> Empty 
-      | _, Empty -> Empty 
-      | Interval (s,t), Interval (u,v) -> create (if Endpoint.compare s u >= 0
-      then s else u) (if Endpoint.compare t v <=0 then t else v)
+      let ordered x y = if Endpoint.compare x y <= 0 then x, y else y, x in
+      match intvl1, intvl2 with
+      | Empty, _
+      | _, Empty -> Empty
+      | Interval (low1, high1), Interval (low2, high2) ->
+         let (_, low), (high, _)  = ordered low1 low2, ordered high1 high2 in
+         create low high
+  
   end ;;
 
 (*......................................................................
@@ -103,11 +115,11 @@ Exercise 1B: Using the completed functor from above, instantiate an
 integer interval module.
 ......................................................................*)
 
-module IntInterval = MakeInterval 
-                      (struct 
-                        type t = int
-                        let compare = compare 
-                      end) ;;
+module IntInterval =
+  MakeInterval (struct 
+                 type t = int 
+                 let compare = Pervasives.compare
+               end) ;;
 
 (*......................................................................
 Exercise 1C: Using your newly created integer interval module, create
@@ -116,8 +128,8 @@ overlap, and calculate their intersection as intvl1_intersect_intvl2.
 ......................................................................*)
 
 let intvl1 = IntInterval.create 3 8 ;;
-let intvl2 = IntInterval.create 4 10;;
-let intvl1_intersect_intvl2 = IntInterval.intersect invl1 intvl2 ;;
+let intvl2 = IntInterval.create 4 10 ;;
+let intvl1_intersect_intvl2 = IntInterval.intersect intvl1 intvl2 ;;
 
 (* There's currently a problem with the MakeInterval functor. It's not
 abstract enough. Notably we are working with an invariant that a valid
@@ -145,14 +157,14 @@ give us a way of referring to the endpoints of an interval.
 ......................................................................*)
 
 module type INTERVAL = 
-  sig 
+  sig
     type interval
     type endpoint
-    val create : endpoint -> endpoint -> interval 
-    val is_empty : interval -> bool 
-    val contains : interval -> endpoint -> bool 
+    val create : endpoint -> endpoint -> interval
+    val is_empty : interval -> bool
+    val contains : interval -> endpoint -> bool
     val intersect : interval -> interval -> interval
-  end 
+  end
 ;;
 
 (*......................................................................
@@ -160,6 +172,7 @@ Exercise 2B: Define the MakeSafeInterval functor using MakeInterval as
 a starting point, such that it returns a module restricted to the
 INTERVAL signature. Don't forget to specify the module type.
 ......................................................................*)
+
 module MakeSafeInterval (Endpoint : ORDERED_TYPE) : INTERVAL = 
   struct
     type endpoint = Endpoint.t
@@ -211,13 +224,13 @@ Exercise 2C: Create an IntSafeInterval module using the new
 MakeSafeInterval functor.
 ......................................................................*)
 
+# 273
 module IntSafeInterval =
   MakeSafeInterval
     (struct 
       type t = int 
       let compare = Pervasives.compare
     end) ;;
-
 
 (* Now, try evaluating the following expression in the REPL:
 
@@ -331,4 +344,3 @@ module IntBestInterval =
       type t = int 
       let compare = Pervasives.compare
     end) ;;
-
